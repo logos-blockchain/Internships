@@ -1,0 +1,139 @@
+# Assignment gap vs width: sender attribution on the W x 3 mix-net, entry assignment (split vs uniform)
+# as the series and W = 1..10 on the x-axis, at a pinned mixing budget (mix_scale = 1e-4).
+#   python experiments/run.py mixnet_assignment_vs_width
+name: mixnet_assignment_vs_width
+
+dummy:
+  count: 19
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 1
+    hops: 3
+    entry_assignment: split
+    mix_scale: 0.0001
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  entry_assignment:
+    path: layer_params.entry_assignment
+    values: [split, uniform]
+  width:
+    path: layer_params.width
+    values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+seed: 0
+reps: 50
+
+plots:
+  # (a) Top-1 vs W, one curve per entry assignment.
+  - x: width
+    series: entry_assignment
+    series_label: '{v}'
+    series_labels: ['split rule', 'uniform rule']
+    legend_title: 'Entry assignment'
+    legend_loc: 'upper right'
+    colors: [firebrick, magenta]
+    band: true
+    marker: none
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xticks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: assignment_gap_top1_vs_W.png
+
+  # (b) true-sender posterior vs W, one curve per entry assignment.
+  - x: width
+    series: entry_assignment
+    series_label: '{v}'
+    series_labels: ['split (pinned entry): $W^{k-1}$ routes', 'uniform (re-picked): $W^{k}$ routes']
+    legend_title: 'Sender $\rightarrow$ entry assignment'
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xticks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: assignment_gap_true_posterior_vs_W.png
+
+  # (c) posterior entropy vs W, one curve per entry assignment.
+  - x: width
+    series: entry_assignment
+    series_label: '{v}'
+    series_labels: ['split (pinned entry): $W^{k-1}$ routes', 'uniform (re-picked): $W^{k}$ routes']
+    legend_title: 'Sender $\rightarrow$ entry assignment'
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xticks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: assignment_gap_entropy_vs_W.png
+
+  # (d) per-set sigma_d vs W, one curve per entry assignment, with the closed form.
+  - x: width
+    series: entry_assignment
+    series_label: '{v}'
+    series_labels: ['split rule', 'uniform rule']
+    colors: [firebrick, magenta]
+    band: true
+    marker: none
+    y: sigma_d
+    errorbar: sem
+    theory: auto
+    theory_label: 'expected $\sigma_d$  (closed form)'
+    hline: auto
+    xticks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Spread of the sender links  $\sigma_d$  (s)'
+    out: assignment_gap_sigma_d_vs_W.png
+
+  # (e) latency overhead ell vs W, one curve per entry assignment.
+  - x: width
+    series: entry_assignment
+    series_label: '{v}'
+    series_labels: ['split (pinned entry): $W^{k-1}$ routes', 'uniform (re-picked): $W^{k}$ routes']
+    legend_title: 'Sender $\rightarrow$ entry assignment'
+    y: latency_overhead
+    errorbar: sem
+    secondary_y: auto
+    xticks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    out: assignment_gap_latency_vs_W.png
+
+  # (f) Excess of Top-1 over its reference line vs W, one curve per entry assignment, log-log.
+  - x: width
+    series: entry_assignment
+    series_label: '{v}'
+    series_labels: ['split (pinned entry): $W^{k-1}$ routes', 'uniform (re-picked): $W^{k}$ routes']
+    legend_title: 'Sender $\rightarrow$ entry assignment'
+    y: deanon_top1
+    ytransform: excess
+    hline: auto
+    errorbar: sem
+    xscale: log
+    yscale: log
+    xticks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Excess over the null  $P_\mathrm{Top1} - \mathbb{E}[1/|S_t|]$'
+    out: assignment_gap_top1_excess_vs_W.png

@@ -1,0 +1,205 @@
+# Mix-net geometry across the budget axis on the `uniform` entry assignment: W x k x 1/lambda_M.
+# Three swept axes, so every panel pins the third one with `fix:`.
+#   python experiments/run.py mixnet_geometry_vs_budget
+name: mixnet_geometry_vs_budget
+
+dummy:
+  count: 19
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 4
+    hops: 3
+    entry_assignment: uniform
+    mix_scale: 0.0001
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  width:
+    path: layer_params.width
+    values: [4, 8, 10]
+  hops:
+    path: layer_params.hops
+    values: [2, 3]
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [
+      0.0001,
+      0.001,
+      0.0037,
+      0.008,
+      0.06,
+      1.0,
+    ]
+
+seed: 0
+reps: 30
+
+plots:
+  # (a) Top-1 vs 1/lambda_M, one curve per W; one panel per k.
+  - x: mix_scale
+    xscale: log
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    ylim: [0.0, 1.12]
+    ncols: 2
+    panels:
+      - fix: {hops: 2}
+        panel_label: '(a) $L = 2$'
+      - fix: {hops: 3}
+        panel_label: '(b) $L = 3$'
+    out: geometry_budget_top1_vs_mix_scale.png
+
+  # (b) Top-1 vs eta, one curve per W; one panel per k.
+  - x: mix_scale
+    xcol: eta
+    xscale: log
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    ylim: [0.0, 1.12]
+    ncols: 2
+    panels:
+      - fix: {hops: 2}
+        panel_label: '(a) $L = 2$'
+      - fix: {hops: 3}
+        panel_label: '(b) $L = 3$'
+    out: geometry_budget_top1_vs_eta.png
+
+  # (c) Top-1 vs 1/eta, one curve per W; one panel per k.
+  - x: mix_scale
+    xcol: inv_eta
+    xscale: log
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Inverse SNR  $1/\eta = \sigma_Z / \sigma_d$   (larger mix delay $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    ylim: [0.0, 1.12]
+    ncols: 2
+    panels:
+      - fix: {hops: 2}
+        panel_label: '(a) $L = 2$'
+      - fix: {hops: 3}
+        panel_label: '(b) $L = 3$'
+    out: geometry_budget_top1_vs_inv_eta.png
+
+  # (d) Top-1 vs ell, one curve per W; one panel per k.
+  - x: mix_scale
+    xcol: latency_overhead
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    ylim: [0.0, 1.12]
+    ncols: 2
+    panels:
+      - fix: {hops: 2}
+        panel_label: '(a) $L = 2$'
+      - fix: {hops: 3}
+        panel_label: '(b) $L = 3$'
+    out: geometry_budget_top1_vs_latency.png
+
+  # (e) latency overhead ell vs 1/lambda_M: one panel per W at k = 3 and one per k at W = 8.
+  - x: mix_scale
+    xscale: log
+    y: latency_overhead
+    errorbar: sem
+    secondary_y: auto
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ncols: 2
+    panels:
+      - fix: {hops: 3}
+        series: width
+        series_label: '$W = {v:g}$'
+        legend_title: 'Mix nodes per layer'
+        panel_label: '(a) width is free  ($L = 3$)'
+      - fix: {width: 8}
+        series: hops
+        series_label: '$L = {v:g}$'
+        legend_title: 'Mix layers (depth)'
+        panel_label: '(b) depth is not  ($W = 8$)'
+    out: geometry_budget_latency_vs_mix_scale.png
+
+  # (f) Top-1 vs W, one curve per mixing budget (subset); one panel per k.
+  - x: width
+    series: mix_scale
+    series_values: [0.0001, 0.001, 0.008, 0.06]
+    series_label: 'mix $= {v:g}$ s'
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xticks: [4, 8, 10]
+    xlabel: 'Mix nodes per layer  $W$   (routes per sender $= W^{L}$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    ylim: [0.0, 1.12]
+    ncols: 2
+    panels:
+      - fix: {hops: 2}
+        panel_label: '(a) $L = 2$'
+      - fix: {hops: 3}
+        panel_label: '(b) $L = 3$'
+    out: geometry_budget_top1_vs_W.png
+
+  # (g) Top-1 vs k, one curve per mixing budget (subset); one panel per W.
+  - x: hops
+    series: mix_scale
+    series_values: [0.0001, 0.001, 0.008, 0.06]
+    series_label: 'mix $= {v:g}$ s'
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xticks: [2, 3]
+    xlabel: 'Mix layers  $L$   (routes per sender $= W^{L}$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    ylim: [0.0, 1.12]
+    ncols: 3
+    panels:
+      - fix: {width: 4}
+        panel_label: '(a) $W = 4$'
+      - fix: {width: 8}
+        panel_label: '(b) $W = 8$'
+      - fix: {width: 10}
+        panel_label: '(c) $W = 10$'
+    out: geometry_budget_top1_vs_k.png

@@ -1,0 +1,131 @@
+# Route-latent vs route-oracle GPA on the 2 x 3 split mix-net, so every figure is a lower/upper band.
+# Sweeps 1/lambda_M x attack.
+#   python experiments/run.py mixnet_attribution_bracket
+name: mixnet_attribution_bracket
+
+dummy:
+  count: 19
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 2
+    hops: 3
+    entry_assignment: split
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [
+      0.0001,
+      0.0002,
+      0.0003,
+      0.00045,
+      0.0007,
+      0.001,
+      0.0014,
+      0.0018,
+      0.0026,
+      0.0037,
+      0.0054,
+      0.008,
+      0.012,
+      0.019,
+      0.03,
+      0.06,
+      0.12,
+      0.25,
+      0.5,
+      1.0,
+    ]
+  attack:
+    path: attack
+    values: [mixnet_attribution, mixnet_attribution_oracle]
+
+seed: 0
+reps: 50
+
+plots:
+  # (a) Top-1 vs 1/lambda_M, one curve per adversary.
+  - x: mix_scale
+    series: attack
+    series_labels: ["route-latent GPA (lower bound)", "route-oracle GPA (upper bound)"]
+    legend_title: "adversary"
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: log
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_bracket_top1_vs_mix_scale.png
+
+  # (b) true-sender posterior vs 1/lambda_M, one curve per adversary.
+  - x: mix_scale
+    series: attack
+    series_labels: ["route-latent GPA (lower bound)", "route-oracle GPA (upper bound)"]
+    legend_title: "adversary"
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: mixnet_bracket_true_posterior_vs_mix_scale.png
+
+  # (c) posterior entropy vs 1/lambda_M, one curve per adversary.
+  - x: mix_scale
+    series: attack
+    series_labels: ["route-latent GPA (lower bound)", "route-oracle GPA (upper bound)"]
+    legend_title: "adversary"
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_bracket_entropy_vs_mix_scale.png
+
+  # (d) Top-1 vs ell, one curve per adversary.
+  - x: mix_scale
+    series: attack
+    series_labels: ["route-latent GPA (lower bound)", "route-oracle GPA (upper bound)"]
+    legend_title: "adversary"
+    xcol: latency_overhead
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_bracket_top1_vs_latency.png
+
+  # (e) Top-1 vs eta, one curve per adversary, log-log.
+  - x: mix_scale
+    series: attack
+    series_labels: ["route-latent GPA (lower bound)", "route-oracle GPA (upper bound)"]
+    legend_title: "adversary"
+    xcol: eta
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    xscale: log
+    yscale: log
+    limit: auto
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$   (log scale)'
+    out: mixnet_bracket_top1_vs_eta_loglog.png

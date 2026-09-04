@@ -1,0 +1,88 @@
+# Single-path sender attribution against the cover probability p_s (0.01..0.2), one curve per mean
+# delay per mix (1e-4, 1e-3, 1.0 s); the random-guess reference moves with p_s and is drawn as a curve.
+#   python experiments/run.py single_path_mix_cover_attribution
+name: single_path_mix_cover_attribution
+
+dummy:
+  p_s: 0.1
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: single_path_mix
+  params:
+    hops: 3
+    mix_scale: 0.001
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: bayes_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  p_s:
+    path: dummy.p_s
+    values: [0.01, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2]
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [0.0001, 0.001, 1.0]
+
+seed: 0
+reps: 30
+
+plots:
+  # (a) Top-1 vs p_s, one curve per mixing budget, with the moving reference.
+  - x: p_s
+    series: mix_scale
+    series_labels: ['$10^{-4}$ s', '$0.001$ s', '$1$ s']
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    colors: [olive, teal, black]
+    band: true
+    marker: none
+    y: deanon_top1
+    errorbar: sem
+    limit: auto
+    theory: auto
+    legend_loc: 'upper right'
+    secondary_x:
+      column: bandwidth_overhead
+      label: 'Bandwidth overhead  $\beta$  (messages per proposal)'
+      ticks: aligned
+      tickfmt: thousands
+      tol: 0.05
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: single_path_cover_top1_vs_ps.png
+
+  # (b) posterior entropy vs p_s, one curve per mixing budget, with the moving reference.
+  - x: p_s
+    series: mix_scale
+    series_labels: ['$10^{-4}$ s', '$0.001$ s', '$1$ s']
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    colors: [olive, teal, black]
+    band: true
+    marker: none
+    y: posterior_entropy
+    errorbar: sem
+    limit: auto
+    theory: auto
+    legend_loc: 'lower right'
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Posterior entropy  $\overline{H}$  (bits)'
+    out: single_path_cover_entropy_vs_ps.png
+
+  # (c) bandwidth overhead beta vs p_s with its closed form: the check behind the top axis of (a).
+  - x: p_s
+    y: bandwidth_overhead
+    errorbar: sem
+    theory: auto
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Bandwidth overhead  $\beta$'
+    out: single_path_cover_bandwidth_vs_ps.png

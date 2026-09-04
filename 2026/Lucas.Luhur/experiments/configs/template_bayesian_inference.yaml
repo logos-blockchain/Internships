@@ -1,0 +1,279 @@
+# =============================================================================
+# TEMPLATE: Bayesian sender-attribution experiment (posterior-type attack)
+# =============================================================================
+#
+# What this experiment answers
+#   A global passive adversary (GPA) watches every message the anonymous-communication (AC)
+#   layer emits. For each block proposal it sees the candidate sender set S_t (every node that
+#   sent in that slot: the real proposer plus cover senders), the receiver r and the broadcast
+#   time y = t + mu(i, r) + Z. It computes the Bayesian posterior over S_t from the delay
+#   density f_Z and the (public) quenched link latencies mu, and is scored on how often it
+#   picks the true proposer.
+#
+# How to use this file
+#   1. Copy it to experiments/configs/<my_experiment>.yaml and set `name` to <my_experiment>.
+#   2. Set the system, cover and AC-layer parameters below. Every key is optional: an omitted
+#      key takes the default stated next to it (the defaults live in src/).
+#   3. Choose the attack, the measures, the sweep axes and the plots.
+#   4. Run:   python experiments/run.py <my_experiment>          (full run)
+#            python experiments/run.py <my_experiment> --quick  (smoke run: T = 20,000, reps = 1)
+#            python experiments/run.py <my_experiment> --plot-only  (redraw from the saved table)
+#            python experiments/run.py --list                   (list the available configs)
+#      Other flags: --seed N, --jobs N (worker processes; <= 0 = auto), --mem-fraction F,
+#      --refresh-theory (recompute the closed-form curves instead of reusing the cache).
+#   5. Outputs: results/tables/<name>.csv (one row per sweep cell x rep, every measure plus
+#      the cost columns) and results/figures/<name>/<out>.png for each entry in `plots`.
+#
+# Units: time is in slots; 1 slot = 1 s (the consensus slot length), so every delay and
+# latency below is in seconds.
+#
+# -----------------------------------------------------------------------------
+name: template_bayesian_inference   # experiment name: names the results table and figure folder
+
+# -----------------------------------------------------------------------------
+# 1. Consensus (the proof-of-stake lottery that produces the block proposals)
+# -----------------------------------------------------------------------------
+N: 1000                   # number of nodes                                   (default 1000)
+f: 0.03333333333333333    # active-slots coefficient = 1/30: P(slot has a leader) = f (default 1/30)
+T: 388800                 # observation window in slots (one epoch)           (default 388,800)
+shape: 1.3333333333333333 # Pareto shape k of the stake distribution; 4/3 ~ Cardano (default 4/3)
+                          # smaller k = heavier tail = more concentrated stake
+
+# -----------------------------------------------------------------------------
+# 2. Gossip network (the broadcast that follows the AC exit; sets the cost baseline)
+# -----------------------------------------------------------------------------
+C: 8                      # connectivity of the random C-regular gossip graph  (default 8)
+d: 0.3                    # homogeneous per-link delay in seconds              (default 0.3)
+rho: 0.0                  # gossip-link jitter ratio: 0 = deterministic links,
+                          # rho > 0 gives T_e = d + Exp(mean rho*d)            (default 0.0)
+
+# -----------------------------------------------------------------------------
+# 3. Cover traffic (the slot-synchronous dummy messages that form the candidate set S_t)
+# -----------------------------------------------------------------------------
+# Exactly one of `p_s` and `count` is active. A slot's proposer is always in its own S_t.
+dummy:
+  p_s: null               # per-node cover probability: |S_t| ~ Binomial(N, p_s), E|S_t| = p_s*N.
+                          # null -> use `count`. Set e.g. 0.02 for E|S_t| = 20.  (default null)
+  count: 19               # fixed number of distinct cover senders per slot, so |S_t| = count + 1
+                          # on a proposal slot; used only when p_s is null       (default 1)
+  window: 0               # +/- slot jitter on a cover message's send time       (default 0)
+
+# -----------------------------------------------------------------------------
+# 4. Link latencies of the AC path (the timing signal the adversary exploits)
+# -----------------------------------------------------------------------------
+# The AC path is sender -> mix_1 -> ... -> mix_k -> receiver, i.e. k+1 links. The link latencies
+# are QUENCHED: drawn once per realisation and public to the adversary. Their spread across
+# candidate senders (sigma_d) is the attribution signal; the intentional AC delay Z
+# (section 5) is the noise. The ratio eta = sigma_d / sigma_Z is reported in the table.
+latency:
+  # (a) Log-normal law (required for `mixnet`; recommended for `single_path_mix`).
+  #     Every AC-path link is d = floor + LogNormal with the physical moments given here.
+  #     Defaults below are the WonderNetwork ping calibration (one-way, seconds).
+  lognormal:
+    floor: 0.0072         # hard minimum link latency L (seconds)              (default 0.0)
+    mean: 0.0629          # mean link latency, floor included; must exceed floor (default 1.0)
+    sd: 0.0333            # link-latency standard deviation; 0 -> every link = mean (default 0.0)
+  # (b) Uniform law (single_path_mix only; mutually exclusive with `lognormal`).
+  #     Uncomment and remove the `lognormal` block. Any key left null uses the homogeneous d.
+  # sender_low: 0.0       # d_i^S ~ U(sender_low, sender_high); sigma_d = (high - low)/sqrt(12)
+  # sender_high: 0.6
+  # receiver_low: null    # d_r^R ~ U(receiver_low, receiver_high); cancels in attribution
+  # receiver_high: null
+  # mix_total: null       # inter-mix chain D_M as one fixed number; null -> (k-1)*d
+  # mix_low: null         # or D_M = sum of k-1 draws U(mix_low, mix_high) (exclusive with mix_total)
+  # mix_high: null
+  # (c) Per-message jitter (annealed noise on every link, on top of the quenched law).
+  jitter:
+    scale: 0.0            # mean per-link jitter eps ~ Exp(scale) in seconds; 0 = off (default 0.0)
+                          # sigma_eps = sqrt(k+1) * scale enters the noise: sigma_noise^2 =
+                          # sigma_Z^2 + sigma_eps^2
+
+# -----------------------------------------------------------------------------
+# 5. Anonymisation layer (the defence under test)
+# -----------------------------------------------------------------------------
+# Choose ONE `layer` block. Available layers:
+#   none            -- no defence (control): every message exits at its own sender, no params.
+#   single_path_mix -- one shared path of k mix hops; each message is held Exp(1/lambda_M) per hop
+#                      after a sender hold Exp(1/lambda_S); the total intentional delay is
+#                      Z = X_S + sum_j X_{M,j}, sigma_Z^2 = sender_scale^2 + k*mix_scale^2.
+#   mixnet          -- a stratified W-wide x k-deep grid of mix nodes; a message takes one of
+#                      the W^k (uniform) or W^(k-1) (split) routes. width = 1 reproduces
+#                      single_path_mix. Requires latency.lognormal.
+layer:
+  name: mixnet
+  params:
+    width: 2              # W, mix nodes per layer                              (default 2)
+    hops: 3               # k, number of mix layers / hops on the path          (default 3)
+    mix_scale: 1.0        # 1/lambda_M, mean mixing delay per hop in seconds    (default 1.0)
+    sender_scale: auto    # 1/lambda_S, mean sender hold in seconds, or "auto" = mix_scale / rho
+                          # so the ratio lambda_S/lambda_M is kept while mix_scale is swept
+                          #                                                     (default 0.25)
+    rho: 4.0              # target ratio lambda_S/lambda_M used when sender_scale is "auto"
+                          #                                                     (default 4.0)
+    receiver_delays: false  # true -> the receiver also mixes (k+1 hold stages) (default false)
+    n_nodes: null         # size of the destination universe; null -> N         (default null)
+    entry_assignment: split # split   -> each sender is pinned to one entry mix (Nym-style
+                            #            gateway); W^(k-1) routes per sender
+                            # uniform -> the entry is re-drawn per message; W^k routes
+                            #                                                   (default split)
+# Single-path alternative (uncomment and remove the mixnet block above):
+# layer:
+#   name: single_path_mix
+#   params:
+#     hops: 3
+#     mix_scale: 1.0
+#     sender_scale: auto
+#     rho: 4.0
+#     receiver_delays: false
+#     n_nodes: null
+# No-defence control:
+# layer:
+#   name: none
+
+# -----------------------------------------------------------------------------
+# 6. Attack (what the adversary computes from its observation)
+# -----------------------------------------------------------------------------
+# Posterior-type attacks (this template). Do NOT pass hops / mix_scale / sender_scale /
+# receiver_delays / latency_profile in attack.params: the pipeline fills them from the
+# layer config, so the adversary's model always matches the system.
+#   bayes_attribution         -- for layer single_path_mix: exact posterior from f_Z and mu.
+#   mixnet_attribution        -- for layer mixnet: the posterior marginalised over every route
+#                                the message could have taken (the route is latent to the GPA).
+#   mixnet_attribution_oracle -- for layer mixnet: the same posterior granted the true route
+#                                (an upper bound on the leakage of the route-latent attack).
+attack:
+  name: mixnet_attribution
+
+# -----------------------------------------------------------------------------
+# 7. Measures (how the guess is graded); every one becomes a column of the results table
+# -----------------------------------------------------------------------------
+# Posterior-type measures (only these pair with the attacks above):
+#   deanon_top1         -- fraction of proposals whose posterior mode is the true sender.
+#                          Random guessing gives E[1/|S_t|].
+#   mean_true_posterior -- mean posterior mass on the true sender. Random guess: E[1/|S_t|].
+#   posterior_entropy   -- mean posterior entropy in bits. Random guess: E[log2 |S_t|].
+# Always added to the table, regardless of `measures`:
+#   bandwidth_overhead  -- beta = (messages entering the AC layer) / (genuine block proposals)
+#   latency             -- mean AC-path delay E[mu + Z] in seconds
+#   latency_overhead    -- ell = 1 + E[AC-path delay] / E[gossip broadcast delay]
+#   sigma_d, sigma_Z, sigma_eps, sigma_noise, eta, inv_eta -- the signal/noise decomposition
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+# -----------------------------------------------------------------------------
+# 8. Sweep (the grid of cells; every combination of the axes is run `reps` times)
+# -----------------------------------------------------------------------------
+# Each axis: a name (becomes a column of the table and the `x` / `series` of a plot), the
+# dotted Config path it sets, and the values. Use `paths: [a, b]` to set several paths from
+# one axis. Paths available: N, f, T, shape, C, d, rho, dummy.p_s, dummy.count, dummy.window,
+# latency.lognormal.{floor,mean,sd}, latency.jitter.scale, latency.{sender_low,...},
+# layer_params.<any key of section 5>, attack, gamma, top_frac.
+sweep:
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [0.25, 0.5, 1.0]
+  # width:
+  #   path: layer_params.width
+  #   values: [1, 2, 4, 8]
+  # hops:
+  #   path: layer_params.hops
+  #   values: [1, 2, 3, 5]
+  # p_s:
+  #   path: dummy.p_s
+  #   values: [0.01, 0.02, 0.05]
+  # jitter:
+  #   path: latency.jitter.scale
+  #   values: [0.0, 0.05, 0.2]
+  # sigma_d:
+  #   path: latency.lognormal.sd
+  #   values: [0.0111, 0.0333, 0.1]
+  # attack:                     # compare the route-latent and route-oracle adversaries
+  #   path: attack
+  #   values: [mixnet_attribution, mixnet_attribution_oracle]
+
+seed: 0                   # master seed; every (cell, rep) draws its own child stream (default 0)
+reps: 3                   # independent realisations per cell (new stakes, latencies, traffic)
+                          # (default 1). Error bars are computed across reps.
+
+# -----------------------------------------------------------------------------
+# 9. Plots (one figure per entry, drawn from the results table after the sweep)
+# -----------------------------------------------------------------------------
+# Required: x (a sweep axis), y (a table column), out (file name under results/figures/<name>/).
+# Common keys:
+#   series: <axis>          one curve per value of a second sweep axis
+#   series_values: [...]    restrict the curves to these values
+#   series_labels: auto     legend labels from the value; for `shape` it prints E[M_N] and k
+#   legend_title, legend_fontsize
+#   fix: {axis: value}      pin other sweep axes to one cell (otherwise cells are pooled)
+#   fix_each: {axis: [..]}  one figure per listed value; `out` must contain "{v}"
+#   x_values: [...]         draw only these x values
+#   xcol: <column>          plot against a derived column instead of the axis itself
+#                           (e.g. eta, inv_eta, latency, bandwidth_overhead)
+#   errorbar: sem|std|minmax   error statistic across reps (default sem)
+#   band: true              shade the error envelope instead of drawing bars
+#   whiskers: false         (minmax only) show min/max as ticks, no bar
+#   hline: auto             the random-guess reference for y (E[1/|S|], E[log2|S|], ...);
+#                           or hline: {y: 0.05, label: '...'} for an explicit line
+#   limit: auto             the no-defence limit for y (1 for top-1 / true posterior, 0 bits)
+#   vline: auto | {y: 0.5, label: '...'}
+#   theory: auto            the closed-form curve for y where one exists (every measure above)
+#   theory_draws: 32        stake draws averaged for the theory curve
+#   ytransform: excess|deficit   plot y minus (or reference minus) the hline reference
+#   xscale / yscale: log,  xticks: [...],  ylim: [lo, hi],  xlabel / ylabel (LaTeX allowed)
+#   secondary_x: {column: bandwidth_overhead, label: '...'}   a second x axis from a column
+#   panels: [ {...}, {...} ]  several sub-plots in one figure, inheriting the shared keys
+plots:
+  # (a) Top-1 de-anonymisation vs the per-hop mixing delay.
+  - x: mix_scale
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: log
+    xticks: [0.25, 0.5, 1.0]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: template_top1_vs_mix.png
+
+  # (b) Mean true-sender posterior vs the per-hop mixing delay.
+  - x: mix_scale
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: log
+    xticks: [0.25, 0.5, 1.0]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: template_true_posterior_vs_mix.png
+
+  # (c) Posterior entropy vs the per-hop mixing delay.
+  - x: mix_scale
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    xscale: log
+    xticks: [0.25, 0.5, 1.0]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: template_entropy_vs_mix.png
+
+  # (d) The latency cost: mean AC-path delay vs the per-hop mixing delay.
+  - x: mix_scale
+    y: latency
+    errorbar: sem
+    xscale: log
+    xticks: [0.25, 0.5, 1.0]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'AC-path latency  $\mu + Z$  (s)'
+    out: template_latency_vs_mix.png
+
+  # (e) Example of a derived x axis: Top-1 vs the signal-to-noise ratio eta.
+  # - x: mix_scale
+  #   xcol: eta
+  #   y: deanon_top1
+  #   hline: auto
+  #   errorbar: sem
+  #   xscale: log
+  #   xlabel: 'SNR  $\eta = \sigma_d/\sqrt{\sigma_Z^2+\sigma_\epsilon^2}$'
+  #   ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+  #   out: template_top1_vs_eta.png

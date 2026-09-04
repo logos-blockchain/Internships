@@ -1,0 +1,23 @@
+name: comp0176
+channels:
+  - defaults
+dependencies:
+  - beautifulsoup4
+  - matplotlib
+  - pillow
+  - seaborn
+  - requests
+  - networkx
+  - scikit-learn
+  - tqdm
+  - pandas
+  - pyyaml
+  - scipy
+  - statsmodels
+  - numpy
+  - python=3.11
+  - jupyterlab
+  - pandoc
+  - sympy
+  - poppler
+  - psutil
