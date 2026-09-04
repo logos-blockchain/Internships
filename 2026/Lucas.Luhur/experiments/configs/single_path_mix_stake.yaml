@@ -1,0 +1,170 @@
+# Stake privacy across the stake distribution: set_stake_inference against the cover rate p_s
+# (0.02..0.9), one curve per Pareto shape k (1.1..5.0), on the count-based fast path.
+#   python experiments/run.py single_path_mix_stake
+name: single_path_mix_stake
+
+fast_counts: True
+
+cover_runs: 25
+
+gamma: 0.1
+top_frac: 0.01
+
+dummy:
+  p_s: 0.01
+
+layer:
+  name: single_path_mix
+  params:
+    hops: 3
+    mix_scale: 1.0
+    sender_scale: 0.25
+    receiver_delays: False
+
+attack:
+  name: set_stake_inference
+
+measures: [stake_top_jaccard, stake_confidence, stake_top1_hit]
+
+sweep:
+  p_s:
+    path: dummy.p_s
+    values: [0.02, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9]
+  shape:
+    path: shape
+    values: [1.1, 1.2, 1.3333333333333333, 1.5, 2.0, 3.0, 5.0]  # 1.3333333333333333 is 4/3 in float64
+
+seed: 0
+reps: 120
+
+plots:
+  # (a) J_x vs p_s, one curve per Pareto shape.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top_jaccard
+    errorbar: minmax
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Top 1\% stakeholder set identified  $J_x$'
+    out: stake_jaccard_vs_ps.png
+
+  # (b) stake confidence vs p_s, one curve per Pareto shape.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_confidence
+    errorbar: minmax
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Stake confidence  (within $\pm\gamma$)'
+    out: stake_confidence_vs_ps.png
+
+  # (c) P_max vs p_s, one curve per Pareto shape.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top1_hit
+    hline: auto
+    errorbar: minmax
+    whiskers: false
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+    out: stake_top1_vs_ps.png
+
+  # (d) P_max vs p_s for three shapes with the paired closed form and beta on top.
+  - x: p_s
+    series: shape
+    series_values: [1.1, 1.3333333333333333, 3.0]
+    marker: none
+    colors: ['#440154', '#21918c', '#fde725']   # viridis 0 / 0.5 / 1: one colour per shape (k = 1.1, 4/3, 3)
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    legend_fontsize: 15
+    y: stake_top1_hit
+    hline: auto
+    theory: auto
+    theory_match_stakes: true
+    errorbar: sem
+    band: true
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+    secondary_x:
+      column: bandwidth_overhead
+      label: 'Bandwidth overhead  $\beta$'
+      tickfmt: thousands
+    out: stake_top1_theory_vs_sim.png
+
+  # (e) J_x vs p_s for the same three shapes with the paired closed form.
+  - x: p_s
+    series: shape
+    series_values: [1.1, 1.3333333333333333, 3.0]
+    marker: none
+    colors: ['#440154', '#21918c', '#fde725']   # as (d)
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    legend_fontsize: 15
+    y: stake_top_jaccard
+    hline: auto
+    theory: auto
+    theory_match_stakes: true
+    errorbar: sem
+    band: true
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Top 1\% stakeholder set identified  $J_x$'
+    secondary_x:
+      column: bandwidth_overhead
+      label: 'Bandwidth overhead  $\beta$'
+      tickfmt: thousands
+    out: stake_jaccard_theory_vs_sim.png
+
+  # (f) bandwidth overhead beta vs p_s, one curve per Pareto shape, with the closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: bandwidth_overhead
+    errorbar: std
+    theory: auto
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Bandwidth overhead  $\beta$'
+    out: bandwidth_overhead_vs_ps.png
+
+  # (g) P_max vs beta, one curve per Pareto shape.
+  - x: p_s
+    xcol: bandwidth_overhead
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top1_hit
+    hline: auto
+    errorbar: minmax
+    whiskers: false
+    xlabel: 'Bandwidth overhead  $\beta$'
+    ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+    out: stake_top1_vs_bandwidth.png
+
+  # (h) J_x vs beta, one curve per Pareto shape.
+  - x: p_s
+    xcol: bandwidth_overhead
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top_jaccard
+    errorbar: minmax
+    xlabel: 'Bandwidth overhead  $\beta$'
+    ylabel: 'Top 1\% stakeholder set identified  $J_x$'
+    out: stake_jaccard_vs_bandwidth.png
+
+  # (i) stake confidence vs beta, one curve per Pareto shape.
+  - x: p_s
+    xcol: bandwidth_overhead
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_confidence
+    errorbar: minmax
+    xlabel: 'Bandwidth overhead  $\beta$'
+    ylabel: 'Stake confidence  (within $\pm\gamma$)'
+    out: stake_confidence_vs_bandwidth.png

@@ -1,0 +1,333 @@
+# Recommended operating point, attribution arm: the W x 1/lambda_M grid at p_s = 0.1 under both
+# limiting adversaries (route-latent and route-oracle); depth k = 3 and jitter off are fixed.
+#   python experiments/run.py recommendation_attribution
+name: recommendation_attribution
+
+shape: 3.0
+
+dummy:
+  p_s: 0.1
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 2
+    hops: 3
+    entry_assignment: split
+    mix_scale: 1.0
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  width:
+    path: layer_params.width
+    values: [1, 2, 3, 4, 5, 8, 10, 14, 20, 40]
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [0.000001, 0.03, 0.06, 0.12, 0.25, 0.5, 1.0]  # 1e-6 = mixing effectively off
+  attack:
+    path: attack
+    values: [mixnet_attribution, mixnet_attribution_oracle]
+
+seed: 0
+reps: 30
+
+plots:
+  # (a) Three-panel band per width: top-1, true-sender posterior and entropy vs 1/lambda_M, one curve per adversary.
+  - x: mix_scale
+    series: attack
+    series_labels: ["GPA", "route-oracle GPA"]
+    legend_title: "adversary"
+    legend_fontsize: 15
+    errorbar: sem
+    xscale: log
+    xticks: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ncols: 3
+    fix_each:
+      width: [1, 2, 3, 4, 5, 8, 10, 14, 20, 40]
+    out: recommendation_band_W{v}.png
+    panels:
+      - y: deanon_top1
+        hline: auto
+        theory: auto
+        theory_label: 'null of each adversary'
+        ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+      - y: mean_true_posterior
+        hline: auto
+        theory: auto
+        theory_label: 'floor of each adversary'
+        ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+      - y: posterior_entropy
+        hline: auto
+        theory: auto
+        theory_label: 'ceiling of each adversary'
+        ylabel: 'Posterior entropy  $\bar H$  (bits)'
+
+  # (b) Top-1 vs 1/lambda_M, one curve per adversary, at W = 4.
+  - x: mix_scale
+    series: attack
+    series_labels: ["GPA", "route-oracle GPA"]
+    colors: [slategray, saddlebrown]
+    fix: {width: 4}
+    y: deanon_top1
+    errorbar: sem
+    band: true
+    marker: none
+    theory: auto
+    theory_label: 'random guess of each adversary'
+    xscale: log
+    xticks: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    legend_loc: 'upper right'
+    secondary_x:
+      column: latency
+      label: 'AC-path delay  $\mathbb{E}[Y]$  (s)'
+      ticks: aligned
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: recommendation_top1_vs_mix_W4_both.png
+
+  # (c) Excess of Top-1 over its reference line vs 1/lambda_M, one curve per adversary, at W = 4.
+
+  - x: mix_scale
+    series: attack
+    series_labels: ["GPA", "route-oracle GPA"]
+    colors: [slategray, saddlebrown]
+    fix: {width: 4}
+    y: deanon_top1
+    ytransform: excess
+    hline: auto
+    errorbar: sem
+    band: true
+    marker: none
+    xscale: log
+    xticks: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    ylim: [0, null]
+    legend_loc: 'upper right'
+    secondary_x:
+      column: latency
+      label: 'AC-path delay  $\mathbb{E}[Y]$  (s)'
+      ticks: aligned
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Excess of $P_\mathrm{Top1}$ over the random guess'
+    out: recommendation_top1_excess_vs_mix_W4.png
+
+  # (d) Excess of Top-1 over its reference line vs 1/lambda_M, one curve per adversary, at W = 1.
+  - x: mix_scale
+    series: attack
+    series_labels: ["GPA", "route-oracle GPA"]
+    legend_title: "adversary"
+    legend_fontsize: 15
+    fix: {width: 1}
+    y: deanon_top1
+    ytransform: excess
+    hline: auto
+    errorbar: sem
+    xscale: log
+    xticks: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'Excess over own null  $P_\mathrm{Top1} - \mathbb{E}[1/|S_t|]$'
+    out: recommendation_top1_excess_vs_mix_W1.png
+
+  # (e) Excess of Top-1 over its reference line vs W, one curve per adversary, at 1/lambda_M = 0.5.
+
+  - x: width
+    series: attack
+    series_labels: ["GPA", "route-oracle GPA"]
+    colors: [slategray, saddlebrown]
+    fix: {mix_scale: 0.5}
+    y: deanon_top1
+    ytransform: excess
+    hline: auto
+    errorbar: sem
+    band: true
+    marker: none
+    xscale: log
+    xticks: [1, 2, 3, 4, 5, 8, 10, 14, 20, 40]
+    ylim: [0, null]
+    legend_loc: 'upper left'
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Excess of $P_\mathrm{Top1}$ over the random guess'
+    out: recommendation_top1_excess_vs_W_mix0.5.png
+
+  # (f) AC-path delay E[Y] vs 1/lambda_M, one curve per W, at adversary = mixnet_attribution.
+  - x: mix_scale
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    fix: {attack: mixnet_attribution}
+    y: latency
+    errorbar: sem
+    xscale: log
+    xticks: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'AC-path latency  $\mu + Z$  (s)'
+    out: recommendation_latency_vs_mix.png
+
+  # (g) latency overhead ell vs 1/lambda_M, one curve per W, at adversary = mixnet_attribution.
+  - x: mix_scale
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    fix: {attack: mixnet_attribution}
+    y: latency_overhead
+    errorbar: sem
+    hline: auto
+    secondary_y: auto
+    xscale: log
+    xticks: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s)'
+    ylabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    out: recommendation_latency_overhead_vs_mix.png
+
+  # (h) Total propagation E[Delta] vs 1/lambda_M, at W = 4, adversary = mixnet_attribution.
+  - x: mix_scale
+    fix: {width: 4, attack: mixnet_attribution}
+    y: latency
+    ytransform: total_propagation
+    hline_color: C3     # the latency limit keeps red; the grey default marks a random guess
+    color: royalblue
+    marker: none
+    errorbar: sem
+    band: true
+    hline: auto
+    theory: auto
+    theory_label: 'closed form of $\mathbb{E}[\Delta]$'
+    xscale: log
+    xticks: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    vline:
+      at: 0.5
+      label: 'recommended  $1/\lambda_M = 0.5$ s'
+    legend_loc: 'upper left'
+    ylim: [0, 32]
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Total propagation  $\mathbb{E}[\Delta]$  (s)'
+    out: recommendation_latency_vs_mix_W4.png
+
+  # (i) Top-1 vs eta, at W = 4, adversary = mixnet_attribution.
+  - x: mix_scale
+    xcol: eta
+    fix: {width: 4, attack: mixnet_attribution}
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    xlabel: 'SNR  $\eta = \sigma_d/\sigma_Z$   (more noise $\leftarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: recommendation_top1_vs_eta_W4.png
+
+  # (j) Top-1 vs 1/eta, at W = 4, adversary = mixnet_attribution.
+  - x: mix_scale
+    xcol: inv_eta
+    fix: {width: 4, attack: mixnet_attribution}
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    xlabel: 'Inverse SNR  $1/\eta = \sigma_Z/\sigma_d$   (more noise $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: recommendation_top1_vs_inv_eta_W4.png
+
+  # (k) Top-1 vs ell, at W = 4, adversary = mixnet_attribution.
+  - x: mix_scale
+    xcol: latency_overhead
+    fix: {width: 4, attack: mixnet_attribution}
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$   (more cost $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: recommendation_top1_vs_latency_overhead_W4.png
+
+  # (l) Top-1 vs eta, log-log, at W = 4, adversary = mixnet_attribution.
+  - x: mix_scale
+    xcol: eta
+    fix: {width: 4, attack: mixnet_attribution}
+    x_values: [0.03, 0.06, 0.12, 0.25, 0.5, 1.0]
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    xscale: log
+    yscale: log
+    xlabel: 'SNR  $\eta = \sigma_d/\sigma_Z$   (more noise $\leftarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: recommendation_top1_vs_eta_W4_loglog.png
+
+  # (m) Top-1 vs W, one curve per adversary, at 1/lambda_M = 1e-6 (mixing off).
+  - x: width
+    series: attack
+    series_labels: ["GPA", "route-oracle GPA"]
+    colors: [slategray, saddlebrown]
+    fix: {mix_scale: 0.000001}
+    y: deanon_top1
+    errorbar: sem
+    band: true
+    marker: none
+    theory: auto
+    theory_label: 'random guess of each adversary'
+    xscale: log
+    xticks: [1, 2, 3, 4, 5, 8, 10, 14, 20, 40]
+    legend_loc: 'upper right'
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: recommendation_top1_vs_W_mix_off.png
+
+  # (n) Top-1 vs W, one curve per mixing budget (subset), at adversary = mixnet_attribution.
+  - x: width
+    series: mix_scale
+    series_values: [0.000001, 0.03, 0.12, 0.5, 1.0]
+    series_labels: ["no mixing", "$0.03$ s", "$0.12$ s", "$0.5$ s", "$1$ s"]
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    cmap: cividis
+    fix: {attack: mixnet_attribution}
+    y: deanon_top1
+    errorbar: sem
+    band: true
+    marker: none
+    hline: auto
+    xscale: log
+    xticks: [1, 2, 3, 4, 5, 8, 10, 14, 20, 40]
+    legend_loc: 'upper right'
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: recommendation_top1_vs_W_by_mix.png
+
+  # (o) Top-1 vs W, one curve per mixing budget (subset), at adversary = mixnet_attribution_oracle.
+  - x: width
+    series: mix_scale
+    series_values: [0.000001, 0.03, 0.12, 0.5, 1.0]
+    series_labels: ["no mixing", "$0.03$ s", "$0.12$ s", "$0.5$ s", "$1$ s"]
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    cmap: cividis
+    fix: {attack: mixnet_attribution_oracle}
+    y: deanon_top1
+    errorbar: sem
+    band: true
+    marker: none
+    theory: auto
+    xscale: log
+    xticks: [1, 2, 3, 4, 5, 8, 10, 14, 20, 40]
+    legend_loc: 'upper right'
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: recommendation_oracle_top1_vs_W_by_mix.png

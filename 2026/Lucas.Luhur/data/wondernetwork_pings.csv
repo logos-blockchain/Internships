@@ -1,0 +1,126 @@
+source,source_continent,destination,destination_continent,rtt_ms
+Dallas,north america,Frankfurt,europe,127.97
+Dallas,north america,Hong Kong,asia,190.39
+Dallas,north america,London,europe,111.58
+Dallas,north america,Los Angeles,north america,30.93
+Dallas,north america,Madrid,europe,124.14
+Dallas,north america,Mumbai,asia,238.28
+Dallas,north america,New York,north america,36.81
+Dallas,north america,Singapore,asia,203.93
+Dallas,north america,Tokyo,asia,156.81
+Dallas,north america,Toronto,north america,32.4
+Dallas,north america,Warsaw,europe,131.93
+Frankfurt,europe,Dallas,north america,126.46
+Frankfurt,europe,Hong Kong,asia,177.11
+Frankfurt,europe,London,europe,14.25
+Frankfurt,europe,Los Angeles,north america,146.62
+Frankfurt,europe,Madrid,europe,28.44
+Frankfurt,europe,Mumbai,asia,149.81
+Frankfurt,europe,New York,north america,82.16
+Frankfurt,europe,Singapore,asia,148.27
+Frankfurt,europe,Tokyo,asia,231.66
+Frankfurt,europe,Toronto,north america,101.59
+Frankfurt,europe,Warsaw,europe,17.28
+Hong Kong,asia,Dallas,north america,191.15
+Hong Kong,asia,Frankfurt,europe,177.62
+Hong Kong,asia,London,europe,184.4
+Hong Kong,asia,Los Angeles,north america,140.61
+Hong Kong,asia,Madrid,europe,193.05
+Hong Kong,asia,Mumbai,asia,98.88
+Hong Kong,asia,New York,north america,203.34
+Hong Kong,asia,Singapore,asia,30.19
+Hong Kong,asia,Tokyo,asia,159.57
+Hong Kong,asia,Toronto,north america,193.66
+Hong Kong,asia,Warsaw,europe,204.15
+London,europe,Dallas,north america,111.48
+London,europe,Frankfurt,europe,15.29
+London,europe,Hong Kong,asia,184.44
+London,europe,Los Angeles,north america,127.55
+London,europe,Madrid,europe,26.69
+London,europe,Mumbai,asia,135.62
+London,europe,New York,north america,70.0
+London,europe,Singapore,asia,160.76
+London,europe,Tokyo,asia,251.45
+London,europe,Toronto,north america,80.63
+London,europe,Warsaw,europe,31.62
+Los Angeles,north america,Dallas,north america,30.92
+Los Angeles,north america,Frankfurt,europe,146.43
+Los Angeles,north america,Hong Kong,asia,140.42
+Los Angeles,north america,London,europe,127.52
+Los Angeles,north america,Madrid,europe,143.83
+Los Angeles,north america,Mumbai,asia,235.87
+Los Angeles,north america,New York,north america,67.08
+Los Angeles,north america,Singapore,asia,180.85
+Los Angeles,north america,Tokyo,asia,105.34
+Los Angeles,north america,Toronto,north america,50.95
+Los Angeles,north america,Warsaw,europe,170.5
+Madrid,europe,Dallas,north america,124.24
+Madrid,europe,Frankfurt,europe,29.61
+Madrid,europe,Hong Kong,asia,192.88
+Madrid,europe,London,europe,26.67
+Madrid,europe,Los Angeles,north america,143.79
+Madrid,europe,Mumbai,asia,122.33
+Madrid,europe,New York,north america,86.39
+Madrid,europe,Singapore,asia,148.87
+Madrid,europe,Tokyo,asia,231.29
+Madrid,europe,Toronto,north america,95.69
+Madrid,europe,Warsaw,europe,61.41
+Mumbai,asia,Dallas,north america,237.54
+Mumbai,asia,Frankfurt,europe,150.67
+Mumbai,asia,Hong Kong,asia,98.5
+Mumbai,asia,London,europe,135.44
+Mumbai,asia,Los Angeles,north america,235.12
+Mumbai,asia,Madrid,europe,122.29
+Mumbai,asia,New York,north america,190.84
+Mumbai,asia,Singapore,asia,53.15
+Mumbai,asia,Tokyo,asia,127.35
+Mumbai,asia,Toronto,north america,199.43
+Mumbai,asia,Warsaw,europe,157.34
+New York,north america,Dallas,north america,36.79
+New York,north america,Frankfurt,europe,84.12
+New York,north america,Hong Kong,asia,203.28
+New York,north america,London,europe,70.11
+New York,north america,Los Angeles,north america,67.02
+New York,north america,Singapore,asia,221.72
+New York,north america,Tokyo,asia,173.09
+New York,north america,Toronto,north america,14.3
+Singapore,asia,Dallas,north america,201.0
+Singapore,asia,Frankfurt,europe,149.33
+Singapore,asia,Hong Kong,asia,30.31
+Singapore,asia,London,europe,160.9
+Singapore,asia,Los Angeles,north america,180.96
+Singapore,asia,Madrid,europe,149.07
+Singapore,asia,Mumbai,asia,53.37
+Singapore,asia,New York,north america,221.76
+Singapore,asia,Tokyo,asia,65.94
+Singapore,asia,Toronto,north america,225.32
+Singapore,asia,Warsaw,europe,171.34
+Tokyo,asia,Frankfurt,europe,233.33
+Tokyo,asia,Hong Kong,asia,159.59
+Tokyo,asia,London,europe,251.7
+Tokyo,asia,Los Angeles,north america,105.31
+Tokyo,asia,Mumbai,asia,127.41
+Tokyo,asia,New York,north america,173.13
+Tokyo,asia,Singapore,asia,66.04
+Toronto,north america,Dallas,north america,33.11
+Toronto,north america,Frankfurt,europe,102.22
+Toronto,north america,Hong Kong,asia,193.68
+Toronto,north america,London,europe,80.61
+Toronto,north america,Los Angeles,north america,50.91
+Toronto,north america,Madrid,europe,95.71
+Toronto,north america,Mumbai,asia,199.19
+Toronto,north america,New York,north america,14.34
+Toronto,north america,Singapore,asia,225.42
+Toronto,north america,Tokyo,asia,144.63
+Toronto,north america,Warsaw,europe,113.44
+Warsaw,europe,Dallas,north america,131.97
+Warsaw,europe,Frankfurt,europe,18.92
+Warsaw,europe,Hong Kong,asia,204.08
+Warsaw,europe,London,europe,31.66
+Warsaw,europe,Los Angeles,north america,168.14
+Warsaw,europe,Madrid,europe,61.5
+Warsaw,europe,Mumbai,asia,157.39
+Warsaw,europe,New York,north america,97.29
+Warsaw,europe,Singapore,asia,171.41
+Warsaw,europe,Tokyo,asia,247.81
+Warsaw,europe,Toronto,north america,113.5

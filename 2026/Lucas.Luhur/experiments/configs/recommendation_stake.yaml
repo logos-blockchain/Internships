@@ -1,0 +1,189 @@
+# Recommended operating point, stake arm: stake inference against the cover rate p_s (0.01..0.2) for
+# the recommended Pareto shape k = 3 and the Cardano-calibrated k = 4/3, on the count-based fast path.
+#   python experiments/run.py recommendation_stake
+name: recommendation_stake
+
+shape: 3.0
+
+fast_counts: True
+cover_runs: 25
+
+gamma: 0.1
+top_frac: 0.01
+
+dummy:
+  p_s: 0.1
+
+layer:
+  name: mixnet
+  params:
+    width: 4
+    hops: 3
+    entry_assignment: split
+    mix_scale: 0.5
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: set_stake_inference
+
+measures: [stake_top1_hit, stake_top_jaccard, stake_confidence]
+
+sweep:
+  p_s:
+    path: dummy.p_s
+    values: [0.01, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2]
+  shape:
+    path: shape
+    values: [1.3333333333333333, 3.0]  # 4/3 in float64
+
+seed: 0
+reps: 120
+
+plots:
+  # (a) P_max vs p_s, one curve per Pareto shape, with the closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    marker: none
+    colors: ['#21918c', '#fde725']   # viridis 0.5 / 1: one colour per shape (k = 4/3, 3)
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    legend_loc: 'center left'
+    legend_fontsize: 15
+    y: stake_top1_hit
+    hline: auto
+    theory: auto
+    theory_draws: 400
+    errorbar: sem
+    band: true
+    vline:
+      at: 0.1
+      label: 'recommended  $p_s = 0.1$'
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+    secondary_x:
+      column: bandwidth_overhead
+      label: 'Bandwidth overhead  $\beta$'
+      tickfmt: thousands
+    out: recommendation_stake_top1_vs_ps.png
+
+  # (b) stake confidence vs p_s, one curve per Pareto shape, with the closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    legend_loc: 'upper right'
+    y: stake_confidence
+    theory: auto
+    theory_draws: 400
+    errorbar: minmax
+    band: true
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Stake confidence  (within $\pm\gamma$)'
+    out: recommendation_stake_confidence_vs_ps.png
+
+  # (c) P_max vs beta, one curve per Pareto shape.
+  - x: p_s
+    xcol: bandwidth_overhead
+    series: shape
+    series_labels: auto
+    legend_loc: 'upper right'
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top1_hit
+    hline: auto
+    vline:
+      at: 0.1
+      label: 'recommended  $p_s = 0.1$'
+    errorbar: sem
+    band: true
+    xlabel: 'Bandwidth overhead  $\beta$'
+    ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+    out: recommendation_stake_top1_vs_bandwidth.png
+
+  # (d) J_x vs p_s, one curve per Pareto shape, with the closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    marker: none
+    colors: ['#21918c', '#fde725']   # as (a)
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    legend_loc: 'upper right'
+    legend_fontsize: 15
+    y: stake_top_jaccard
+    hline: auto
+    theory: auto
+    theory_draws: 400
+    errorbar: sem
+    band: true
+    vline:
+      at: 0.1
+      label: 'recommended  $p_s = 0.1$'
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Top 1\% stakeholder set identified  $J_x$'
+    secondary_x:
+      column: bandwidth_overhead
+      label: 'Bandwidth overhead  $\beta$'
+      tickfmt: thousands
+    out: recommendation_stake_jaccard_theory_vs_ps.png
+
+  # (e) J_x vs p_s, one curve per Pareto shape.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top_jaccard
+    errorbar: minmax
+    band: true
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Top 1\% stakeholder set identified  $J_x$'
+    out: recommendation_stake_jaccard_vs_ps.png
+
+  # (f) bandwidth overhead beta vs p_s, one curve per Pareto shape, with the closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: bandwidth_overhead
+    errorbar: std
+    band: true
+    theory: auto
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Bandwidth overhead  $\beta$'
+    out: recommendation_stake_bandwidth_vs_ps.png
+
+  # (g) bandwidth overhead beta vs p_s, with the closed form.
+  - x: p_s
+    y: bandwidth_overhead
+    color: royalblue
+    marker: none
+    errorbar: std
+    band: true
+    theory: auto
+    theory_label: 'closed form of $\beta$'
+    vline:
+      at: 0.1
+      label: 'recommended  $p_s = 0.1$'
+    legend_loc: 'upper left'
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Bandwidth overhead  $\beta$'
+    out: recommendation_stake_bandwidth_vs_ps_pooled.png
+
+  # (h) Excess of P_max over its reference line vs p_s, one curve per Pareto shape, log y.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    legend_loc: 'lower left'
+    y: stake_top1_hit
+    hline: auto
+    ytransform: excess
+    yscale: log
+    errorbar: sem
+    band: true
+    vline:
+      at: 0.1
+      label: 'recommended  $p_s = 0.1$'
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Excess over null  $P_{\mathrm{max}} - 1/N$'
+    out: recommendation_stake_top1_excess_vs_ps.png

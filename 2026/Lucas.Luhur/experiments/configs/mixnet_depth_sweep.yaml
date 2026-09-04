@@ -1,0 +1,257 @@
+# Mix-net depth scaling: sender attribution at W = 2 with the depth k = 1..6 as the series and
+# the mean delay per mix 1/lambda_M (an 11-cell subset of the shared ladder) on the x-axis.
+#   python experiments/run.py mixnet_depth_sweep
+name: mixnet_depth_sweep
+
+dummy:
+  count: 19
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 2
+    hops: 3
+    entry_assignment: split
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  hops:
+    path: layer_params.hops
+    values: [1, 2, 3, 4, 5, 6]
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [
+      0.0001,
+      0.0003,
+      0.0007,
+      0.001,
+      0.0018,
+      0.0037,
+      0.008,
+      0.019,
+      0.06,
+      0.25,
+      1.0,
+    ]
+
+seed: 0
+reps: 30
+
+plots:
+  # (a) Top-1 vs 1/eta, one curve per depth.
+  - x: mix_scale
+    xcol: inv_eta
+    xscale: log
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Inverse SNR  $1/\eta = \sigma_Z / \sigma_d$   (larger mix delay $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_depth_top1_vs_inv_eta.png
+
+  # (b) true-sender posterior vs 1/eta, one curve per depth.
+  - x: mix_scale
+    xcol: inv_eta
+    xscale: log
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Inverse SNR  $1/\eta = \sigma_Z / \sigma_d$   (larger mix delay $\rightarrow$)'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: mixnet_depth_true_posterior_vs_inv_eta.png
+
+  # (c) posterior entropy vs 1/eta, one curve per depth.
+  - x: mix_scale
+    xcol: inv_eta
+    xscale: log
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Inverse SNR  $1/\eta = \sigma_Z / \sigma_d$   (larger mix delay $\rightarrow$)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_depth_entropy_vs_inv_eta.png
+
+  # (d) latency overhead ell vs eta, one curve per depth.
+  - x: mix_scale
+    xcol: eta
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: latency_overhead
+    errorbar: sem
+    secondary_y: auto
+    xscale: log
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    out: mixnet_depth_latency_vs_eta.png
+
+  # (e) Top-1 vs ell, one curve per depth.
+  - x: mix_scale
+    xcol: latency_overhead
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_depth_top1_vs_latency.png
+
+  # (f) true-sender posterior vs ell, one curve per depth.
+  - x: mix_scale
+    xcol: latency_overhead
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: mixnet_depth_true_posterior_vs_latency.png
+
+  # (g) posterior entropy vs ell, one curve per depth.
+  - x: mix_scale
+    xcol: latency_overhead
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_depth_entropy_vs_latency.png
+
+  # (h) Top-1 vs eta, one curve per depth.
+  - x: mix_scale
+    xcol: eta
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: log
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_depth_top1_vs_eta.png
+
+  # (i) true-sender posterior vs eta, one curve per depth.
+  - x: mix_scale
+    xcol: eta
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: log
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: mixnet_depth_true_posterior_vs_eta.png
+
+  # (j) posterior entropy vs eta, one curve per depth.
+  - x: mix_scale
+    xcol: eta
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: log
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_depth_entropy_vs_eta.png
+
+  # (k) Top-1 vs k, one curve per mixing budget (subset).
+  - x: hops
+    series: mix_scale
+    series_values: [0.0003, 0.001, 0.008, 0.06, 1.0]
+    series_label: 'mix $= {v:g}$ s'
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xticks: [1, 2, 3, 4, 5, 6]
+    xlabel: 'Mix layers  $L$   (routes per sender $= W^{L-1} = 2^{L-1}$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_depth_top1_vs_k.png
+
+  # (l) posterior entropy vs k, one curve per mixing budget (subset).
+  - x: hops
+    series: mix_scale
+    series_values: [0.0003, 0.001, 0.008, 0.06, 1.0]
+    series_label: 'mix $= {v:g}$ s'
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xticks: [1, 2, 3, 4, 5, 6]
+    xlabel: 'Mix layers  $L$   (routes per sender $= W^{L-1} = 2^{L-1}$)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_depth_entropy_vs_k.png
+
+  # (m) Excess of Top-1 over its reference line vs k, one curve per mixing budget (subset).
+  - x: hops
+    series: mix_scale
+    series_values: [0.0001, 0.001, 0.008, 0.06]
+    series_label: 'mix $= {v:g}$ s'
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    y: deanon_top1
+    ytransform: excess
+    hline: auto
+    errorbar: sem
+    xticks: [1, 2, 3, 4, 5, 6]
+    xlabel: 'Mix layers  $L$'
+    ylabel: 'Excess over the null  $P_\mathrm{Top1} - \mathbb{E}[1/|S_t|]$'
+    out: mixnet_depth_top1_excess_vs_k.png
+
+  # (n) Top-1 vs 1/lambda_M, one curve per depth.
+  - x: mix_scale
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: log
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_depth_top1_vs_mix_scale.png

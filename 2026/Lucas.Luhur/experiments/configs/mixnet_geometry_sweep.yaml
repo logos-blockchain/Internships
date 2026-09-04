@@ -1,0 +1,151 @@
+# Mix-net geometry: width W and depth k swept together at one frozen mixing budget
+# (mix_scale = 1e-4), so the (W, k) surface isolates route blur from the mixing noise.
+#   python experiments/run.py mixnet_geometry_sweep
+name: mixnet_geometry_sweep
+
+dummy:
+  count: 19
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 2
+    hops: 3
+    entry_assignment: split
+    mix_scale: 0.0001
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  width:
+    path: layer_params.width
+    values: [1, 2, 3, 4, 5, 6, 8, 16]
+  hops:
+    path: layer_params.hops
+    values: [1, 2, 3, 4]
+
+seed: 0
+reps: 30
+
+plots:
+  # (a) Top-1 vs W, one curve per depth.
+  - x: width
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    xscale: log
+    xticks: [1, 2, 3, 4, 5, 6, 8, 16]
+    xlabel: 'Mix nodes per layer  $W$   (routes per sender $= W^{L-1}$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_geometry_top1_vs_W.png
+
+  # (b) Top-1 vs k, one curve per W.
+  - x: hops
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    xticks: [1, 2, 3, 4]
+    xlabel: 'Mix layers  $L$   (routes per sender $= W^{L-1}$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_geometry_top1_vs_k.png
+
+  # (c) posterior entropy vs W, one curve per depth.
+  - x: width
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    xscale: log
+    xticks: [1, 2, 3, 4, 5, 6, 8, 16]
+    xlabel: 'Mix nodes per layer  $W$   (routes per sender $= W^{L-1}$)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_geometry_entropy_vs_W.png
+
+  # (d) posterior entropy vs k, one curve per W.
+  - x: hops
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    xticks: [1, 2, 3, 4]
+    xlabel: 'Mix layers  $L$   (routes per sender $= W^{L-1}$)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_geometry_entropy_vs_k.png
+
+  # (e) Excess of Top-1 over its reference line vs W, one curve per depth.
+  - x: width
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: deanon_top1
+    ytransform: excess
+    hline: auto
+    errorbar: sem
+    xscale: log
+    xticks: [1, 2, 3, 4, 5, 6, 8, 16]
+    xlabel: 'Mix nodes per layer  $W$'
+    ylabel: 'Excess over the null  $P_\mathrm{Top1} - \mathbb{E}[1/|S_t|]$'
+    out: mixnet_geometry_top1_excess_vs_W.png
+
+  # (f) Excess of Top-1 over its reference line vs k, one curve per W.
+  - x: hops
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    y: deanon_top1
+    ytransform: excess
+    hline: auto
+    errorbar: sem
+    xticks: [1, 2, 3, 4]
+    xlabel: 'Mix layers  $L$'
+    ylabel: 'Excess over the null  $P_\mathrm{Top1} - \mathbb{E}[1/|S_t|]$'
+    out: mixnet_geometry_top1_excess_vs_k.png
+
+  # (g) latency overhead ell vs k, one curve per W.
+  - x: hops
+    series: width
+    series_label: '$W = {v:g}$'
+    legend_title: 'Mix nodes per layer'
+    y: latency_overhead
+    errorbar: sem
+    secondary_y: auto
+    xticks: [1, 2, 3, 4]
+    xlabel: 'Mix layers  $L$'
+    ylabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    out: mixnet_geometry_latency_vs_k.png
+
+  # (h) true-sender posterior vs W, one curve per depth.
+  - x: width
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers (depth)'
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    xscale: log
+    xticks: [1, 2, 3, 4, 5, 6, 8, 16]
+    xlabel: 'Mix nodes per layer  $W$   (routes per sender $= W^{L-1}$)'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: mixnet_geometry_true_posterior_vs_W.png

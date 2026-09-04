@@ -1,0 +1,94 @@
+# Size bracket, lower rung: the recommended system shrunk to N = 100, attribution arm. Sweeps
+# p_s x width x attack at the recommended delay (mix_scale = 0.5).
+#   python experiments/run.py recommendation_attribution_N100
+name: recommendation_attribution_N100
+
+N: 100
+shape: 3.0
+
+dummy:
+  p_s: 0.1
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 4
+    hops: 3
+    entry_assignment: split
+    mix_scale: 0.5
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  p_s:
+    path: dummy.p_s
+    values: [0.1, 0.2]
+  width:
+    path: layer_params.width
+    values: [1, 4]
+  attack:
+    path: attack
+    values: [mixnet_attribution, mixnet_attribution_oracle]
+
+seed: 0
+reps: 30
+
+plots:
+  # (a) Three-panel band per cover rate: top-1, true-sender posterior and entropy vs W, one curve per adversary.
+  - x: width
+    series: attack
+    series_labels: ["route-latent GPA (lower bound)", "route-oracle GPA (upper bound)"]
+    legend_title: "adversary"
+    legend_fontsize: 13
+    errorbar: sem
+    xticks: [1, 4]
+    xlabel: 'Mix-net width  $W$'
+    ncols: 3
+    fix_each:
+      p_s: [0.1, 0.2]
+    out: recommendation_N100_band_ps{v}.png
+    panels:
+      - y: deanon_top1
+        hline: auto
+        theory: auto
+        theory_label: 'null of each adversary'
+        ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+      - y: mean_true_posterior
+        hline: auto
+        theory: auto
+        theory_label: 'floor of each adversary'
+        ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+      - y: posterior_entropy
+        hline: auto
+        theory: auto
+        theory_label: 'ceiling of each adversary'
+        ylabel: 'Posterior entropy  $\bar H$  (bits)'
+
+  # (b) Top-1 excess over each arm's own null vs W, one figure per cover rate.
+  - x: width
+    series: attack
+    series_labels: ["route-latent GPA (lower bound)", "route-oracle GPA (upper bound)"]
+    legend_title: "adversary"
+    legend_fontsize: 13
+    y: deanon_top1
+    ytransform: excess
+    hline: auto
+    errorbar: sem
+    xticks: [1, 4]
+    fix_each:
+      p_s: [0.1, 0.2]
+    xlabel: 'Mix-net width  $W$'
+    ylabel: 'Top-1 excess over own null'
+    out: recommendation_N100_top1_excess_ps{v}.png

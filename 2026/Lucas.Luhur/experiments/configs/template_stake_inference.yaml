@@ -1,0 +1,246 @@
+# =============================================================================
+# TEMPLATE: stake-inference experiment (scalar-type attack)
+# =============================================================================
+#
+# What this experiment answers
+#   A global passive adversary (GPA) counts, over a whole epoch of T slots, how often each
+#   node appears in a sender set S_t. A node with a block must send; every other node sends
+#   cover with probability p_s. The participation frequency q_i = p_s + (1 - p_s) phi(alpha_i),
+#   phi(alpha) = 1 - (1 - f)^alpha, is therefore a function of the node's relative stake
+#   alpha_i, and the adversary inverts it to estimate every stake. It is scored on how well the
+#   estimates identify the largest stakeholders.
+#
+# How to use this file
+#   1. Copy it to experiments/configs/<my_experiment>.yaml and set `name` to <my_experiment>.
+#   2. Set the system and cover parameters below. Every key is optional: an omitted key takes
+#      the default stated next to it (the defaults live in src/).
+#   3. Choose the measures, the sweep axes and the plots.
+#   4. Run:   python experiments/run.py <my_experiment>          (full run)
+#            python experiments/run.py <my_experiment> --quick  (smoke run: T = 20,000, reps = 1)
+#            python experiments/run.py <my_experiment> --plot-only  (redraw from the saved table)
+#            python experiments/run.py --list                   (list the available configs)
+#      Other flags: --seed N, --jobs N (worker processes; <= 0 = auto), --mem-fraction F,
+#      --refresh-theory (recompute the closed-form curves instead of reusing the cache).
+#   5. Outputs: results/tables/<name>.csv (one row per sweep cell x rep x cover run) and
+#      results/figures/<name>/<out>.png for each entry in `plots`.
+#      python experiments/stake_epochs.py <my_experiment> extends a finished run to many
+#      epochs (how identification compounds over years of observation).
+#
+# Units: time is in slots; 1 slot = 1 s (the consensus slot length).
+#
+# -----------------------------------------------------------------------------
+name: template_stake_inference      # experiment name: names the results table and figure folder
+
+# -----------------------------------------------------------------------------
+# 1. Consensus (the proof-of-stake lottery that produces the block proposals)
+# -----------------------------------------------------------------------------
+N: 1000                   # number of nodes                                   (default 1000)
+f: 0.03333333333333333    # active-slots coefficient = 1/30: P(slot has a leader) = f (default 1/30)
+T: 388800                 # observation window in slots (one epoch)           (default 388,800)
+shape: 1.3333333333333333 # Pareto shape k of the stake distribution; 4/3 ~ Cardano (default 4/3)
+                          # smaller k = heavier tail = more concentrated stake
+
+# -----------------------------------------------------------------------------
+# 2. Gossip network (only the cost baseline; stake inference is timing-free)
+# -----------------------------------------------------------------------------
+C: 8                      # connectivity of the random C-regular gossip graph  (default 8)
+d: 0.3                    # homogeneous per-link delay in seconds              (default 0.3)
+rho: 0.0                  # gossip-link jitter ratio; 0 = deterministic links  (default 0.0)
+
+# -----------------------------------------------------------------------------
+# 3. Execution mode
+# -----------------------------------------------------------------------------
+fast_counts: true         # true  -> sample each node's participation count directly:
+                          #          n_i = wins_i + Binomial(T - wins_i, p_s). No message trace
+                          #          is built, so the AC layer is never executed; hours become
+                          #          seconds. Only for attack set_stake_inference.
+                          # false -> run the full pipeline (consensus -> cover -> layer ->
+                          #          attack); needed if the table must also carry `latency`.
+                          #                                                     (default false)
+cover_runs: 10            # fast_counts only: cover realisations M per drawn stake vector.
+                          # The table then has reps x cover_runs rows per cell and the closed
+                          # forms can be averaged over the same stake draws  (default 1)
+
+# -----------------------------------------------------------------------------
+# 4. Scoring parameters of the stake measures
+# -----------------------------------------------------------------------------
+gamma: 0.1                # stake_confidence band: alpha_hat within alpha*(1 +/- gamma) (default 0.1)
+top_frac: 0.01            # stake_top_jaccard: the top x = 1% of stakers, m = round(x N) (default 0.01)
+
+# -----------------------------------------------------------------------------
+# 5. Cover traffic (the dial of this experiment)
+# -----------------------------------------------------------------------------
+# Exactly one of `p_s` and `count` is active. Bandwidth overhead grows with p_s as
+# beta = 1 + p_s (N/Phi - 1), Phi = sum_i phi(alpha_i) (the expected proposals per slot).
+dummy:
+  p_s: 0.1                # per-node cover probability: |S_t| ~ Binomial(N, p_s), E|S_t| = p_s*N
+                          # null -> use `count`                                  (default null)
+  # count: 19             # fixed number of distinct cover senders per slot (fast_counts: false
+                          # only); |S_t| = count + 1 on a proposal slot           (default 1)
+  # window: 0             # +/- slot jitter on a cover message's send time        (default 0)
+
+# -----------------------------------------------------------------------------
+# 6. Link latencies of the AC path (only used when fast_counts is false)
+# -----------------------------------------------------------------------------
+# See template_bayesian_inference.yaml for every key. Stake inference reads who sent, not
+# when, so the latency law only affects the `latency` cost column.
+# latency:
+#   lognormal: {floor: 0.0072, mean: 0.0629, sd: 0.0333}
+#   jitter: {scale: 0.0}
+
+# -----------------------------------------------------------------------------
+# 7. Anonymisation layer
+# -----------------------------------------------------------------------------
+# Stake leaks through the sender sets, which no layer hides: the layer therefore does not
+# change the stake measures. Under fast_counts it is recorded for provenance and never run;
+# under the full pipeline it sets the `latency` and `latency_overhead` cost columns. See
+# template_bayesian_inference.yaml for every layer key and default.
+layer:
+  name: mixnet
+  params:
+    width: 2              # W, mix nodes per layer                              (default 2)
+    hops: 3               # k, number of mix layers                             (default 3)
+    entry_assignment: split # split (one entry per sender) or uniform           (default split)
+    mix_scale: 1.0        # 1/lambda_M, mean mixing delay per hop in seconds    (default 1.0)
+    sender_scale: auto    # 1/lambda_S in seconds, or "auto" = mix_scale / rho  (default 0.25)
+    rho: 4.0              # lambda_S/lambda_M when sender_scale is "auto"       (default 4.0)
+    receiver_delays: false  # true -> the receiver also mixes                   (default false)
+# layer:
+#   name: single_path_mix
+#   params: {hops: 3, mix_scale: 1.0, sender_scale: 0.25, receiver_delays: false}
+# layer:
+#   name: none            # the no-defence control (no params block)
+
+# -----------------------------------------------------------------------------
+# 8. Attack
+# -----------------------------------------------------------------------------
+# set_stake_inference is the only scalar-type attack. Do NOT pass f / p_s / T / N in
+# attack.params: the pipeline fills them from the system config above, so the adversary's
+# model of the lottery and the cover always matches the system that generated the data.
+attack:
+  name: set_stake_inference
+
+# -----------------------------------------------------------------------------
+# 9. Measures (how the stake estimate is graded); each becomes a column of the table
+# -----------------------------------------------------------------------------
+# Scalar-type measures (only these pair with set_stake_inference):
+#   stake_top1_hit     -- 1 if the node with the largest estimated stake is the true largest
+#                         stakeholder, else 0. Random guess: 1/N.
+#   stake_top_jaccard  -- Jaccard overlap between the estimated and the true top-x set
+#                         (x = top_frac). Random guess: ~ m/(2N - m), m = round(x N).
+#   stake_confidence   -- fraction of nodes whose estimate lies within alpha*(1 +/- gamma).
+# Always added to the table: bandwidth_overhead (beta). With fast_counts: false also
+# latency and latency_overhead.
+measures: [stake_top1_hit, stake_top_jaccard, stake_confidence]
+
+# -----------------------------------------------------------------------------
+# 10. Sweep (the grid of cells; every combination of the axes is run `reps` times)
+# -----------------------------------------------------------------------------
+# Each axis: a name (becomes a column of the table and the `x` / `series` of a plot), the
+# dotted Config path it sets, and the values. Use `paths: [a, b]` to set several paths from
+# one axis. Paths available: N, f, T, shape, C, d, rho, dummy.p_s, dummy.count, gamma,
+# top_frac, cover_runs, layer_params.<key>, latency.<key>.
+sweep:
+  p_s:
+    path: dummy.p_s
+    values: [0.02, 0.1, 0.3]
+  shape:
+    path: shape
+    values: [1.3333333333333333, 3.0]   # 4/3 (Cardano-like) and a lighter tail
+  # N:
+  #   path: N
+  #   values: [100, 1000, 3000]
+  # T:                          # shorter observation windows (fractions of an epoch)
+  #   path: T
+  #   values: [38880, 97200, 194400, 388800]
+
+seed: 0                   # master seed; every (cell, rep) draws its own child stream (default 0)
+reps: 5                   # independent stake realisations per cell           (default 1)
+
+# -----------------------------------------------------------------------------
+# 11. Plots (one figure per entry, drawn from the results table after the sweep)
+# -----------------------------------------------------------------------------
+# Required: x (a sweep axis), y (a table column), out (file name under results/figures/<name>/).
+# Common keys:
+#   series: <axis>          one curve per value of a second sweep axis
+#   series_values: [...]    restrict the curves to these values
+#   series_labels: auto     legend labels from the value; for `shape` it prints E[M_N] and k
+#   legend_title, legend_fontsize
+#   fix: {axis: value}      pin other sweep axes to one cell (otherwise cells are pooled)
+#   fix_each: {axis: [..]}  one figure per listed value; `out` must contain "{v}"
+#   x_values: [...]         draw only these x values
+#   xcol: <column>          plot against a derived column, e.g. bandwidth_overhead
+#   errorbar: sem|std|minmax   error statistic across reps (default sem)
+#   whiskers: false         (minmax only) show min/max as ticks, no bar
+#   band: true              shade the error envelope instead of drawing bars
+#   hline: auto             the random-guess reference for y (1/N for top-1, ...)
+#   theory: auto            the closed-form curve for y (all three stake measures and beta)
+#   theory_match_stakes: true   evaluate the closed form on the sweep's own stake draws
+#   ytransform: excess      plot y minus the hline reference
+#   xscale / yscale: log,  xticks: [...],  ylim: [lo, hi],  xlabel / ylabel (LaTeX allowed)
+#   secondary_x: {column: bandwidth_overhead, label: '...'}   a second x axis from a column
+plots:
+  # (a) Largest-stakeholder identification vs the cover rate, one curve per Pareto shape.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top1_hit
+    hline: auto
+    errorbar: minmax
+    whiskers: false
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+    out: template_stake_top1_vs_ps.png
+
+  # (b) Top-1% set identification (Jaccard) vs the cover rate.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top_jaccard
+    errorbar: minmax
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Top 1\% stakeholder set identified  $J_x$'
+    out: template_stake_jaccard_vs_ps.png
+
+  # (c) The bandwidth cost: beta vs the cover rate, with its closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: bandwidth_overhead
+    errorbar: std
+    theory: auto
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Bandwidth overhead  $\beta$'
+    out: template_bandwidth_vs_ps.png
+
+  # (d) Privacy against cost: the same measure plotted against beta instead of p_s.
+  - x: p_s
+    xcol: bandwidth_overhead
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: stake_top1_hit
+    hline: auto
+    errorbar: minmax
+    whiskers: false
+    xlabel: 'Bandwidth overhead  $\beta$'
+    ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+    out: template_stake_top1_vs_bandwidth.png
+
+  # (e) Simulation against the closed form on the same stake draws.
+  # - x: p_s
+  #   series: shape
+  #   series_values: [1.3333333333333333, 3.0]
+  #   series_labels: auto
+  #   y: stake_top1_hit
+  #   hline: auto
+  #   theory: auto
+  #   theory_match_stakes: true
+  #   errorbar: minmax
+  #   whiskers: false
+  #   xlabel: 'Cover probability  $p_s$'
+  #   ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+  #   out: template_stake_top1_theory_vs_sim.png

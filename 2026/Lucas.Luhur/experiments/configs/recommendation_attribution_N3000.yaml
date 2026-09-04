@@ -1,0 +1,40 @@
+# Size bracket, top rung: the recommended system at N = 3000 (Cardano scale), attribution arm.
+# One cell (W = 4, mix_scale = 0.5, p_s = 0.1) under both adversaries; no figures.
+#   python experiments/run.py recommendation_attribution_N3000
+name: recommendation_attribution_N3000
+
+N: 3000
+shape: 3.0
+
+dummy:
+  p_s: 0.1
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 4
+    hops: 3
+    entry_assignment: split
+    mix_scale: 0.5
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  attack:
+    path: attack
+    values: [mixnet_attribution, mixnet_attribution_oracle]
+
+seed: 0
+reps: 30

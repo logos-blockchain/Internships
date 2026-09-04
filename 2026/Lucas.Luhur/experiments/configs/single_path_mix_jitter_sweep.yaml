@@ -1,0 +1,126 @@
+# Per-message link jitter swept against the mixing budget on the single-path mix (W = 1): the
+# same 5 x 9 grid and panels as mixnet_jitter_sweep with only the layer changed.
+#   python experiments/run.py single_path_mix_jitter_sweep
+name: single_path_mix_jitter_sweep
+
+dummy:
+  count: 19
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+  jitter:
+    scale: 0.0
+
+layer:
+  name: single_path_mix
+  params:
+    hops: 3
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: bayes_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [
+      0.000001,  # mixing effectively off
+      0.001,
+      0.008,
+      0.06,
+      1.0,
+    ]
+  jitter_scale:
+    path: latency.jitter.scale
+    values: [0.0, 0.0001, 0.0005, 0.002, 0.008, 0.03, 0.1, 0.3, 1.0]
+
+seed: 0
+reps: 30
+
+plots:
+  # (a) Top-1 vs the jitter scale, one curve per mixing budget (subset).
+  - x: jitter_scale
+    series: mix_scale
+    series_values: [0.000001, 0.001, 0.06]
+    series_labels: ['no mixing', '$0.001$ s', '$0.06$ s']
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    colors: ['0.25', teal, darkviolet]   # 'no mixing' in dark grey
+    band: true
+    marker: none
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: symlog
+    legend_loc: 'upper right'
+    xlabel: 'Mean jitter per link  $1/\lambda_\varepsilon$  (s, log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: single_path_jitter_top1_vs_scale.png
+
+  # (b) Top-1 vs 1/eta, one curve per mixing budget.
+  - x: jitter_scale
+    series: mix_scale
+    series_label: 'mix $= {v:g}$ s'
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    xcol: inv_eta
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: log
+    xlabel: 'Inverse SNR  $1/\eta = \sqrt{\sigma_Z^2 + \sigma_\varepsilon^2}\,/\,\sigma_d$   (more noise $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: single_path_jitter_top1_vs_inv_eta.png
+
+  # (c) AC-path delay E[Y] vs the jitter scale, one curve per mixing budget (subset).
+  - x: jitter_scale
+    series: mix_scale
+    series_values: [0.000001, 0.001, 0.06]
+    series_labels: ['no mixing', '$0.001$ s', '$0.06$ s']
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    colors: ['0.25', teal, darkviolet]   # 'no mixing' in dark grey
+    band: true
+    marker: none
+    y: latency
+    errorbar: sem
+    xscale: symlog
+    legend_loc: 'upper left'
+    xlabel: 'Mean jitter per link  $1/\lambda_\varepsilon$  (s, log scale)'
+    ylabel: 'AC-path delay  $\mathbb{E}[Y]$  (s)'
+    out: single_path_jitter_latency_vs_scale.png
+
+  # (d) Top-1 vs E[Y], one curve per mixing budget.
+  - x: jitter_scale
+    series: mix_scale
+    series_label: 'mix $= {v:g}$ s'
+    legend_title: 'Mean delay per mix  $1/\lambda_M$'
+    xcol: latency
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'AC-path latency  $\mu + Z + E$  (s)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: single_path_jitter_top1_vs_latency.png
+
+  # (e) Top-1 vs the jitter scale, one curve per mixing budget (subset).
+  - x: jitter_scale
+    series: mix_scale
+    series_values: [0.000001]
+    series_labels: ['mixing effectively off ($1/\lambda_M = 10^{-6}$ s)']
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xscale: symlog
+    legend_loc: 'upper right'
+    xlabel: 'Jitter scale  $1/\lambda_\varepsilon$  (s per link)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: single_path_jitter_effect_mixing_off.png

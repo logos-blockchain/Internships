@@ -1,0 +1,227 @@
+# Mix-net sender attribution on the 2 x 3 grid, log-normal link law, `split` entry assignment (each
+# sender keeps one entry node; the shipped model). Sweeps the mean delay per mix 1/lambda_M.
+#   python experiments/run.py mixnet_attribution_split
+name: mixnet_attribution_split
+
+dummy:
+  count: 19
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: mixnet
+  params:
+    width: 2
+    hops: 3
+    entry_assignment: split
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: mixnet_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [
+      0.0001,
+      0.0002,
+      0.0003,
+      0.00045,
+      0.0007,
+      0.001,
+      0.0014,
+      0.0018,
+      0.0026,
+      0.0037,
+      0.0054,
+      0.008,
+      0.012,
+      0.019,
+      0.03,
+      0.06,
+      0.12,
+      0.25,
+      0.5,
+      1.0,
+    ]
+
+seed: 0
+reps: 50
+
+plots:
+  # (a) Top-1 vs 1/eta.
+  - x: mix_scale
+    xcol: inv_eta
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Inverse SNR  $1/\eta = \sigma_Z / \sigma_d$   (larger mix delay $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_split_top1_vs_inv_eta.png
+
+  # (b) true-sender posterior vs 1/eta.
+  - x: mix_scale
+    xcol: inv_eta
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Inverse SNR  $1/\eta = \sigma_Z / \sigma_d$   (larger mix delay $\rightarrow$)'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: mixnet_split_true_posterior_vs_inv_eta.png
+
+  # (c) posterior entropy vs 1/eta.
+  - x: mix_scale
+    xcol: inv_eta
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Inverse SNR  $1/\eta = \sigma_Z / \sigma_d$   (larger mix delay $\rightarrow$)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_split_entropy_vs_inv_eta.png
+
+  # (d) latency overhead ell vs eta, with the closed form.
+  - x: mix_scale
+    xcol: eta
+    y: latency_overhead
+    errorbar: sem
+    theory: auto
+    secondary_y: auto
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    out: mixnet_split_latency_vs_eta.png
+
+  # (e) Top-1 vs ell.
+  - x: mix_scale
+    xcol: latency_overhead
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_split_top1_vs_latency.png
+
+  # (f) true-sender posterior vs ell.
+  - x: mix_scale
+    xcol: latency_overhead
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: mixnet_split_true_posterior_vs_latency.png
+
+  # (g) posterior entropy vs ell.
+  - x: mix_scale
+    xcol: latency_overhead
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'Latency overhead  $\ell = \mathbb{E}[\Delta]/\mathbb{E}[D_{\mathrm{br}}]$'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_split_entropy_vs_latency.png
+
+  # (h) Top-1 vs eta.
+  - x: mix_scale
+    xcol: eta
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_split_top1_vs_eta.png
+
+  # (i) true-sender posterior vs eta.
+  - x: mix_scale
+    xcol: eta
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$'
+    out: mixnet_split_true_posterior_vs_eta.png
+
+  # (j) posterior entropy vs eta.
+  - x: mix_scale
+    xcol: eta
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    limit: auto
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (smaller mix delay $\rightarrow$)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits)'
+    out: mixnet_split_entropy_vs_eta.png
+
+  # (k) Top-1 vs eta, log-log.
+  - x: mix_scale
+    xcol: eta
+    y: deanon_top1
+    errorbar: sem
+    hline: auto
+    xscale: log
+    yscale: log
+    limit: auto
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$   (log scale)'
+    out: mixnet_split_top1_vs_eta_loglog.png
+
+  # (l) true-sender posterior vs eta, log-log.
+  - x: mix_scale
+    xcol: eta
+    y: mean_true_posterior
+    errorbar: sem
+    hline: auto
+    xscale: log
+    yscale: log
+    limit: auto
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (log scale)'
+    ylabel: 'Mean true-sender posterior  $\bar P_\mathrm{true}$   (log scale)'
+    out: mixnet_split_true_posterior_vs_eta_loglog.png
+
+  # (m) posterior entropy vs eta, log-log.
+  - x: mix_scale
+    xcol: eta
+    y: posterior_entropy
+    errorbar: sem
+    hline: auto
+    xscale: log
+    yscale: log
+    xlabel: 'SNR  $\eta = \sigma_d / \sigma_Z$   (log scale)'
+    ylabel: 'Posterior entropy  $\bar H$  (bits, log scale)'
+    out: mixnet_split_entropy_vs_eta_loglog.png
+
+  # (n) Top-1 vs 1/lambda_M.
+  - x: mix_scale
+    y: deanon_top1
+    errorbar: sem
+    band: true
+    marker: none
+    color: firebrick
+    label: 'split rule  ($W^{L-1}$ routes)'
+    overlay:
+      - table: mixnet_attribution
+        label: 'uniform rule  ($W^{L}$ routes)'
+        color: magenta
+    legend_title: 'Entry assignment'
+    legend_loc: 'upper right'
+    hline: auto
+    limit: auto
+    xscale: log
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: mixnet_split_top1_vs_mix_scale.png

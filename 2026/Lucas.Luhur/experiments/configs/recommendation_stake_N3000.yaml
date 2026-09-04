@@ -1,0 +1,88 @@
+# Size bracket, top rung: the recommended system at N = 3000 (Cardano scale), stake arm. The
+# p_s ladder of recommendation_stake plus the held-|S| cell p_s = 0.0333 = 100/3000.
+#   python experiments/run.py recommendation_stake_N3000
+name: recommendation_stake_N3000
+
+N: 3000
+shape: 3.0
+
+fast_counts: True
+cover_runs: 25
+
+gamma: 0.1
+top_frac: 0.01
+
+dummy:
+  p_s: 0.0333  # 100/3000, holds E|S| ~ 100
+
+layer:
+  name: mixnet
+  params:
+    width: 4
+    hops: 3
+    entry_assignment: split
+    mix_scale: 0.5
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: set_stake_inference
+
+measures: [stake_top1_hit, stake_top_jaccard, stake_confidence]
+
+sweep:
+  p_s:
+    path: dummy.p_s
+    values: [0.01, 0.025, 0.0333, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2]
+  shape:
+    path: shape
+    values: [1.3333333333333333, 3.0]  # 4/3 in float64
+
+seed: 0
+reps: 120
+
+plots:
+  # (a) P_max vs p_s, one curve per Pareto shape, with the closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    legend_loc: 'upper right'
+    y: stake_top1_hit
+    hline: auto
+    theory: auto
+    theory_draws: 400
+    errorbar: minmax
+    band: true
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Largest stakeholder identified  $P_{\mathrm{max}}$'
+    out: recommendation_stake_N3000_top1_vs_ps.png
+
+  # (b) stake confidence vs p_s, one curve per Pareto shape, with the closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    legend_loc: 'upper right'
+    y: stake_confidence
+    theory: auto
+    theory_draws: 400
+    errorbar: minmax
+    band: true
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Stake confidence  (within $\pm\gamma$)'
+    out: recommendation_stake_N3000_confidence_vs_ps.png
+
+  # (c) bandwidth overhead beta vs p_s, one curve per Pareto shape, with the closed form.
+  - x: p_s
+    series: shape
+    series_labels: auto
+    legend_title: 'Max expected stake  $\mathbb{E}[M_N]$  ($k$)'
+    y: bandwidth_overhead
+    errorbar: std
+    band: true
+    theory: auto
+    xlabel: 'Cover probability  $p_s$'
+    ylabel: 'Bandwidth overhead  $\beta$'
+    out: recommendation_stake_N3000_bandwidth_vs_ps.png

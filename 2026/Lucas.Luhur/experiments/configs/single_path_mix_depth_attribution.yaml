@@ -1,0 +1,132 @@
+# Single-path sender attribution against the mean delay per mix, one curve per depth L = 1..4.
+# The system of single_path_mix_lognormal_attribution with the depth added as a second axis.
+#   python experiments/run.py single_path_mix_depth_attribution
+name: single_path_mix_depth_attribution
+
+dummy:
+  count: 19
+
+latency:
+  lognormal:
+    floor: 0.0072
+    mean: 0.0629
+    sd: 0.0333
+
+layer:
+  name: single_path_mix
+  params:
+    hops: 3
+    sender_scale: auto
+    rho: 4.0
+    receiver_delays: False
+
+attack:
+  name: bayes_attribution
+
+measures: [deanon_top1, mean_true_posterior, posterior_entropy]
+
+sweep:
+  hops:
+    path: layer_params.hops
+    values: [1, 2, 3, 4]
+  mix_scale:
+    path: layer_params.mix_scale
+    values: [
+      0.0001, 0.0002, 0.0003, 0.00045, 0.0007, 0.001, 0.0014, 0.0018, 0.0026, 0.0037,
+      0.0054, 0.008, 0.012, 0.019, 0.03, 0.06, 0.12, 0.25, 0.5, 1.0,
+    ]
+
+seed: 0
+reps: 50
+
+plots:
+  # (a) Top-1 vs 1/lambda_M, one curve per depth.
+  - x: mix_scale
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers  $L$'
+    colors: [hotpink, darkblue, darkgreen, darkorange]
+    y: deanon_top1
+    errorbar: sem
+    band: true
+    marker: none
+    hline: auto
+    limit: auto
+    xscale: log
+    legend_loc: 'upper right'
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: single_path_depth_top1_vs_mix_scale.png
+
+  # (b) true-sender posterior vs 1/lambda_M, one curve per depth.
+  - x: mix_scale
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers  $L$'
+    colors: [hotpink, darkblue, darkgreen, darkorange]
+    y: mean_true_posterior
+    errorbar: sem
+    band: true
+    marker: none
+    hline: auto
+    limit: auto
+    xscale: log
+    legend_loc: 'upper right'
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Mean true-sender posterior  $\overline{P}_{\mathrm{true}}$'
+    out: single_path_depth_true_posterior_vs_mix_scale.png
+
+  # (c) posterior entropy vs 1/lambda_M, one curve per depth.
+  - x: mix_scale
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers  $L$'
+    colors: [hotpink, darkblue, darkgreen, darkorange]
+    y: posterior_entropy
+    errorbar: sem
+    band: true
+    marker: none
+    hline: auto
+    limit: auto
+    xscale: log
+    legend_loc: 'lower right'
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'Posterior entropy  $\overline{H}$  (bits)'
+    out: single_path_depth_entropy_vs_mix_scale.png
+
+  # (d) AC-path delay E[Y] vs 1/lambda_M, one curve per depth.
+  - x: mix_scale
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers  $L$'
+    colors: [hotpink, darkblue, darkgreen, darkorange]
+    y: latency
+    errorbar: sem
+    band: true
+    marker: none
+    xscale: log
+    legend_loc: 'upper left'
+    xlabel: 'Mean delay per mix  $1/\lambda_M$  (s, log scale)'
+    ylabel: 'AC-path delay  $\mathbb{E}[Y]$  (s)'
+    out: single_path_depth_latency_vs_mix_scale.png
+
+  # (e) Top-1 vs E[Y], one curve per depth.
+  - x: mix_scale
+    xcol: latency
+    xcol_fit: affine
+    xticks: [0.2, 0.5, 1, 2, 4]
+    series: hops
+    series_label: '$L = {v:g}$'
+    legend_title: 'Mix layers  $L$'
+    colors: [hotpink, darkblue, darkgreen, darkorange]
+    y: deanon_top1
+    errorbar: sem
+    band: true
+    marker: none
+    hline: auto
+    limit: auto
+    xscale: log
+    legend_loc: 'upper right'
+    xlabel: 'AC-path delay  $\mathbb{E}[Y]$  (s, log scale)'
+    ylabel: 'Top-1 de-anonymisation  $P_\mathrm{Top1}$'
+    out: single_path_depth_top1_vs_latency.png
